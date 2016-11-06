@@ -1,23 +1,30 @@
 <?php
 namespace Opine\User;
 use Lcobucci\JWT\Configuration;
-use Model;
+use Opine\User\Model as UserModel;
 
 class Service {
     private $root;
-    private $configService;
+    private $model;
+    private $jwt;
+    private $activities;
 
-    public function __construct ($root, $configService)
+    public function __construct (string $root, UserModel $model, Array $jwt, Array $activities)
     {
         $this->root = $root;
-        $this->configService = $configService;
+        $this->model = $model;
+        $this->jwt = $jwt;
+        $this->activities = $activities;
     }
 
     public function decodeJWT (string $token) : Array
     {
         $config = new Configuration();
         $token = $config->getParser()->parse((string) $token);
-        $token->getHeaders(); // Retrieves the token header
+        if (!$token->verify($signer, $this->jwt['signature'])) {
+            return false;
+        }
+        $token->getHeaders();
         $token->getClaims();
 
         return [
@@ -29,28 +36,34 @@ class Service {
 
     public function encodeJWT ($id, string $email, array $roles) : string
     {
-        $config = new Configuration();
+        $jwt = new Configuration();
+        $signer = $config->getSigner();
 
-        $token = $config->createBuilder()->
-            issuedBy('http://example.com')->
-            canOnlyBeUsedBy('http://example.org')->
-            identifiedBy('4f1g23a12aa', true)->
-            issuedAt(time())->canOnlyBeUsedAfter(time() + 60)->
-            expiresAt(time() + 3600)->
+        $token = $jwt->createBuilder()->
+            issuedBy($this->jwt['issuedBy'])->
+            canOnlyBeUsedBy($this->jwt['canOnlyBeUsedBy'])->
+            identifiedBy($this->jwt['identifiedBy'], true)->
+            issuedAt(time())->
+            canOnlyBeUsedAfter(time())->
+            expiresAt(time() + $this->jwt['expiresAt'])->
             with('id', $id)->
             with('email', $email)->
             with('roles', $roles)->
+            sign($signer, $this->jwt['signature'])->
             getToken();
-
-        return (string)$token;
     }
 
     public function getRoles ($userId) : array
     {
-        $roles = Model::getRoles($userId);
+        return $this->model->getRoles($userId);
     }
 
-    public function checkActivity (string $activity, array $userRoles, array $activityRoles) {
+    public function getUser ($userId) : array
+    {
+        return $this->model->getUser($userId);
+    }
+
+    public function checkActivity () {
 
     }
 }

@@ -1,0 +1,19 @@
+services:
+    db:
+        class: PDO
+        arguments:
+            - config.db.dsn
+            - config.db.username
+            - config.db.password
+    userModel:
+        class: Opine\User\Model
+        arguments:
+            - %root%
+            - "@pdo"
+    userService:
+        class: Opine\User\Service
+        arguments:
+            - %root%
+            - "@userModel"
+            - config.jwt
+            - config.authorization

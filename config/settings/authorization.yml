@@ -1,0 +1,7 @@
+settings:
+    cms:
+        - SUPERADMIN
+        - ADMIN:
+    test:
+        - SOME_ROLE:
+            - controller@qualifier

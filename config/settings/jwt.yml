@@ -1,0 +1,6 @@
+settings:
+    issuedBy: http://test.com
+    canOnlyBeUsedBy: http://test.com
+    identifiedBy: abc123
+    expiresAt: 3600
+    signature: abc123
