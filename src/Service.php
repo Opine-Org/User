@@ -1,6 +1,9 @@
 <?php
 namespace Opine\User;
-use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Builder;
+use Lcobucci\JWT\Parser;
+use Lcobucci\JWT\ValidationData;
+use Lcobucci\JWT\Signer\Hmac\Sha256;
 use Opine\User\Model as UserModel;
 
 class Service {
@@ -19,10 +22,11 @@ class Service {
 
     public function decodeJWT (string $token) : Array
     {
-        $jwt = new Configuration();
-        $token = $jwt->getParser()->parse((string) $token);
+        $jwt = new Parser();
+        $signer = new Sha256();
+        $token = $jwt->parse($token);
         if (!$token->verify($signer, $this->jwt['signature'])) {
-            return false;
+            return [];
         }
         $token->getHeaders();
         $token->getClaims();
@@ -36,19 +40,19 @@ class Service {
 
     public function encodeJWT (int $id, string $email, array $roles) : string
     {
-        $jwt = new Configuration();
-        $signer = $jwt->getSigner();
+        $jwt = new Builder();
+        $signer = new Sha256();
 
-        $token = $jwt->createBuilder()->
-            issuedBy($this->jwt['issuedBy'])->
-            canOnlyBeUsedBy($this->jwt['canOnlyBeUsedBy'])->
-            identifiedBy($this->jwt['identifiedBy'], true)->
-            issuedAt(time())->
-            canOnlyBeUsedAfter(time())->
-            expiresAt(time() + $this->jwt['expiresAt'])->
-            with('id', $id)->
-            with('email', $email)->
-            with('roles', $roles)->
+        return (string)$jwt->
+            setIssuer($this->jwt['issuedBy'])->
+            setAudience($this->jwt['canOnlyBeUsedBy'])->
+            setId($this->jwt['identifiedBy'], true)->
+            setIssuedAt(time())->
+            setNotBefore(time())->
+            setExpiration(time() + $this->jwt['expiresAt'])->
+            set('id', $id)->
+            set('email', $email)->
+            set('roles', $roles)->
             sign($signer, $this->jwt['signature'])->
             getToken();
     }
@@ -65,5 +69,13 @@ class Service {
 
     public function checkActivity () {
 
+    }
+
+    public function login (string $email, string $password) {
+        return $this->model->login($email, $password, $this->jwt['signature']);
+    }
+
+    public function addUser ($fields) {
+        return $this->model->addUser($fields);
     }
 }
