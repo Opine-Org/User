@@ -1,12 +1,12 @@
 <?php
-namespace Opine/User;
+namespace Opine\User;
 use PDO;
 
 class Model {
     private $root;
     private $db;
 
-    public function __constructor (string $root, PDO $db)
+    public function __construct (string $root, PDO $db)
     {
         $this->root = $root;
         $this->db = $db;

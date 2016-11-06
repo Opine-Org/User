@@ -14,7 +14,7 @@
     ],
     "require": {
         "php"             : ">=7.0.0",
-        "lcobucci/jwt"    : "1.0.1",
+        "lcobucci/jwt"    : "3.2.1",
         "opine/interfaces": "~1.0",
         "opine/config"    : "~3.0",
         "opine/container" : "~2.0"

@@ -19,8 +19,8 @@ class Service {
 
     public function decodeJWT (string $token) : Array
     {
-        $config = new Configuration();
-        $token = $config->getParser()->parse((string) $token);
+        $jwt = new Configuration();
+        $token = $jwt->getParser()->parse((string) $token);
         if (!$token->verify($signer, $this->jwt['signature'])) {
             return false;
         }
@@ -34,10 +34,10 @@ class Service {
         ];
     }
 
-    public function encodeJWT ($id, string $email, array $roles) : string
+    public function encodeJWT (int $id, string $email, array $roles) : string
     {
         $jwt = new Configuration();
-        $signer = $config->getSigner();
+        $signer = $jwt->getSigner();
 
         $token = $jwt->createBuilder()->
             issuedBy($this->jwt['issuedBy'])->
