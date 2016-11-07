@@ -44,17 +44,45 @@ class Model {
         return $result->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function checkUser (string $email) : bool
+    private function checkUser (string $email) : bool
     {
-
+        $email = trim(strtolower($email));
+        $result = $this->db->prepare('
+            SELECT
+                count(*) AS count
+            FROM
+                users
+            WHERE
+                email = :email
+        ');
+        $result->execute(['email' => $email]);
+        $count = $result->fetch(PDO::FETCH_ASSOC)['count'];
+        if ($count == 0) {
+            return true;
+        }
+        return false;
     }
 
-    public function addUser (array $values) : integer
+    public function addUser ($firstName, $lastName, $email, $password)
     {
-        $result = $this->db->prepare(
-
-
-        );
+        if (!$this->checkUser($email)) {
+            return false;
+        };
+        $email = trim(strtolower($email));
+        $statement = $this->db->prepare('
+            INSERT INTO users
+            (first_name, last_name, email, password)
+            VALUES
+            (:firstName, :lastName, :email, :password)
+        ');
+        $result = $statement->execute([
+            'firstName' => $firstName,
+            'lastName' => $lastName,
+            'email' => $email,
+            'password' => $password
+        ]);
+        var_dump($result);
+        exit();
     }
 
     public function login (string $email, string $password, string $salt) : bool

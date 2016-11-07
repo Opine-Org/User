@@ -1,5 +1,5 @@
 services:
-    db:
+    pdo:
         class: PDO
         arguments:
             - config.db.dsn
