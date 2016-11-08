@@ -1,7 +1,10 @@
 settings:
-    cms:
-        - SUPERADMIN
-        - ADMIN:
-    test:
-        - SOME_ROLE:
-            - controller@qualifier
+    activities:
+        cms:
+            - SUPERADMIN
+            - ADMIN
+        test:
+            - SOME_ROLE:
+                - controller@qualifier
+    redirects:
+        cms: /

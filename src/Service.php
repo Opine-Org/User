@@ -5,16 +5,21 @@ use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\ValidationData;
 use Lcobucci\JWT\Signer\Hmac\Sha256;
 use Opine\User\Model as UserModel;
+use Opine\Interfaces\Container;
 
 class Service {
     private $root;
+    private $containerService;
     private $model;
     private $jwt;
     private $activities;
+    private $tokenSession;
+    private $qualifications = [];
 
-    public function __construct (string $root, UserModel $model, Array $jwt, Array $activities)
+    public function __construct (string $root, Container $containerService, UserModel $model, Array $jwt, Array $activities)
     {
         $this->root = $root;
+        $this->containerService = $containerService;
         $this->model = $model;
         $this->jwt = $jwt;
         $this->activities = $activities;
@@ -67,8 +72,42 @@ class Service {
         return $this->model->getUser($userId);
     }
 
-    public function checkActivity () {
-
+    public function checkActivity (string $activity) {
+        $authorized = false;
+        $redirect = '/';
+        if (isset($this->activities['redirects'][$activity])) {
+            $redirect = $this->activities['redirects'][$activity];
+        }
+        if (empty($this->tokenSession)) {
+            return ['authorized' => false, 'redirect' => $redirect, 'cause' => 'not logged in'];
+        }
+        if (!isset($this->activities['activities'][$activity])) {
+            return ['authorized' => false, 'redirect' => $redirect, 'cause' => 'unknown activity'];
+        }
+        $activityRoles = $this->activities['activities'][$activity];
+        $userRoles = $this->tokenSession['roles'];
+        foreach ($activityRoles as $activityRole => $qualifiers) {
+            if (!in_array($activityRole, $userRoles)) {
+                continue;
+            }
+            if (empty($qualifiers)) {
+                $authorized = true;
+                continue;
+            }
+            foreach ($qualifiers as $qualifier) {
+                list($service, $action) = explode('@', $qualifier, 2);
+                $service = $this->containerService->get($service);
+                $qualifierResult = call_user_func_array([$service, $action], $this->tokenSession);
+                if ($qualifierResult['authorized'] === true) {
+                    $authorized = true;
+                    if (!isset($qualifierResult['payload']) || empty($qualifierResult['payload'])) {
+                        continue;
+                    }
+                    $this->qualifications = array_merge($this->qualifications, $qualifierResult['payload']);
+                }
+            }
+        }
+        return ['authorized' => $authorized, 'redirect' => $redirect, 'qualifications' => $this->qualifications];
     }
 
     public function login (string $email, string $password) {
@@ -77,5 +116,17 @@ class Service {
 
     public function addUser ($fields) {
         return $this->model->addUser($fields);
+    }
+
+    public function setTokenSession ($tokenSession) {
+        $this->tokenSession = $tokenSession;
+    }
+
+    public function getTokenSession () {
+        return $this->tokenSession;
+    }
+
+    public function getQualifications () {
+        return $this->qualifications;
     }
 }
