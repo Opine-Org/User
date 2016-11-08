@@ -114,8 +114,8 @@ class Service {
         return $this->model->login($email, $password, $this->jwt['signature']);
     }
 
-    public function addUser ($fields) {
-        return $this->model->addUser($fields);
+    public function addUser (string $firstName, string $lastName, string $email, string $password) {
+        return $this->model->addUser($firstName, $lastName, $email, $password);
     }
 
     public function setTokenSession ($tokenSession) {

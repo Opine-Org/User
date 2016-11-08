@@ -63,7 +63,7 @@ class Model {
         return false;
     }
 
-    public function addUser ($firstName, $lastName, $email, $password)
+    public function addUser (string $firstName, string $lastName, string $email, string $password)
     {
         if (!$this->checkUser($email)) {
             return false;
@@ -71,22 +71,41 @@ class Model {
         $email = trim(strtolower($email));
         $statement = $this->db->prepare('
             INSERT INTO users
-            (first_name, last_name, email, password)
+                (first_name, last_name, email, password)
             VALUES
-            (:firstName, :lastName, :email, :password)
+                (:firstName, :lastName, :email, :password)
         ');
         $result = $statement->execute([
             'firstName' => $firstName,
             'lastName' => $lastName,
             'email' => $email,
-            'password' => $password
+            'password' => password_hash($password, PASSWORD_DEFAULT)
         ]);
-        var_dump($result);
-        exit();
+        return $this->db->lastInsertId('users_id_seq');
     }
 
-    public function login (string $email, string $password, string $salt) : bool
+    public function login (string $email, string $password) : bool
     {
-
+        $email = trim(strtolower($email));
+        $statement = $this->db->prepare('
+            SELECT
+                id,
+                password
+            FROM
+                users
+            WHERE
+                email = :email
+        ');
+        $result = $statement->execute([
+            'email' => $email
+        ]);
+        $record = $result->fetch(PDO::FETCH_ASSOC);
+        if (empty($record)) {
+            return false;
+        }
+        if (password_verify($password, $record['password'])) {
+            return true;
+        }
+        return false;
     }
 }
