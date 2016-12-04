@@ -81,7 +81,56 @@ class Model {
             'email' => $email,
             'password' => password_hash($password, PASSWORD_DEFAULT)
         ]);
-        return $this->db->lastInsertId('users_id_seq');
+        $userId = $this->db->lastInsertId('users_id_seq');
+        $this->makeSuperAdmin($userId);
+        return $userId;
+    }
+
+    private function makeSuperAdmin ($userId) : bool
+    {
+        // if this is the first user to register, make them a SUPER_ADMIN
+        // see if there were any entries before this one
+        $result = $this->db->prepare('
+            SELECT id FROM users WHERE id < :id LIMIT 1
+        ');
+        $result->execute([
+            'id' => $userId
+        ]);
+
+        // if any records are found, then return
+        $record = $result->fetch(PDO::FETCH_ASSOC);
+        if (!empty($record)) {
+            return false;
+        }
+
+        // get the super admin role id
+        $result = $this->db->prepare('
+            SELECT id FROM authorization_roles WHERE name = \'SUPER_ADMIN\'
+        ');
+        $result->execute();
+        $record = $result->fetch(PDO::FETCH_ASSOC);
+
+        // if the role does not already exist, create it
+        if (empty($record)) {
+            $result = $this->db->prepare('
+                INSERT INTO authorization_roles (name) VALUES (\'SUPER_ADMIN\')
+            ');
+            $result->execute();
+            $roleId = $this->db->lastInsertId('authorization_roles_id_seq');
+        } else {
+            $roleId = $record['id'];
+        }
+
+        // insert the SUPER_ADMIN role for this user
+        $result = $this->db->prepare('
+            INSERT INTO authorization_user_roles (user_id, role_id) VALUES (:userId, :roleId)
+        ');
+        $result->execute([
+            'userId' => $userId,
+            'roleId' => $roleId
+        ]);
+
+        return true;
     }
 
     public function login (string $email, string $password) : bool

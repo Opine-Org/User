@@ -86,6 +86,13 @@ class Service {
         }
         $activityRoles = $this->activities['activities'][$activity];
         $userRoles = $this->tokenSession['roles'];
+
+        // always authorize super admin
+        if (in_array('SUPER_ADMIN', $userRoles)) {
+            $authorized = true;
+        }
+
+        // loop through all activity roles and qualifiers
         foreach ($activityRoles as $activityRole => $qualifiers) {
             if (!in_array($activityRole, $userRoles)) {
                 continue;
