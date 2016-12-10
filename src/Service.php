@@ -6,6 +6,7 @@ use Lcobucci\JWT\ValidationData;
 use Lcobucci\JWT\Signer\Hmac\Sha256;
 use Opine\User\Model as UserModel;
 use Opine\Interfaces\Container;
+use Exception;
 
 class Service {
     private $root;
@@ -13,10 +14,10 @@ class Service {
     private $model;
     private $jwt;
     private $activities;
-    private $tokenSession;
-    private $qualifications = [];
+    private $tokenSession = [];
+    private $userQualifications = [];
 
-    public function __construct (string $root, Container $containerService, UserModel $model, Array $jwt, Array $activities)
+    public function __construct (string $root, Container $containerService, UserModel $model, array $jwt, array $activities)
     {
         $this->root = $root;
         $this->containerService = $containerService;
@@ -25,11 +26,15 @@ class Service {
         $this->activities = $activities;
     }
 
-    public function decodeJWT (string $token) : Array
+    public function decodeJWT (string $token) : array
     {
         $jwt = new Parser();
         $signer = new Sha256();
-        $token = $jwt->parse($token);
+        try {
+            $token = $jwt->parse($token);
+        } catch (Exception $e) {
+            return [];
+        }
         if (!$token->verify($signer, $this->jwt['signature'])) {
             return [];
         }
@@ -62,17 +67,28 @@ class Service {
             getToken();
     }
 
-    public function getRoles ($userId) : array
+    public function getRoles () : array
     {
-        return $this->model->getRoles($userId);
+        return $this->model->getRoles();
     }
 
-    public function getUser ($userId) : array
+    public function getUserRoles (int $userId) : array
+    {
+        return $this->model->getUserRoles($userId);
+    }
+
+    public function getUser (int $userId) : array
     {
         return $this->model->getUser($userId);
     }
 
-    public function checkActivity (string $activity) {
+    public function getUserByEmail (string $email) : array
+    {
+        return $this->model->getUser($userId);
+    }
+
+    public function checkActivity (string $activity) : array
+    {
         $authorized = false;
         $redirect = '/';
         if (isset($this->activities['redirects'][$activity])) {
@@ -93,14 +109,32 @@ class Service {
         }
 
         // loop through all activity roles and qualifiers
-        foreach ($activityRoles as $activityRole => $qualifiers) {
+        foreach ($activityRoles as $activityRole) {
+
+            // some roles are just a string, others container an array of qualifiers
+            if (!is_array($activityRole)) {
+                $qualifiers = [];
+            } else {
+                foreach ($activityRole as $key => $value) {
+                    $activityRole = $key;
+                    $qualifiers = $value;
+                    break;
+                }
+            }
+
+            // see if the user's role is one of the activity roles
             if (!in_array($activityRole, $userRoles)) {
                 continue;
             }
+
+            // if there are not qualifiers, the user must be authorized
             if (empty($qualifiers)) {
                 $authorized = true;
                 continue;
             }
+
+            // if there are qualifiers, each one needs to be checked
+            // the user will gain access if ANY qualifier matches
             foreach ($qualifiers as $qualifier) {
                 list($service, $action) = explode('@', $qualifier, 2);
                 $service = $this->containerService->get($service);
@@ -110,30 +144,34 @@ class Service {
                     if (!isset($qualifierResult['payload']) || empty($qualifierResult['payload'])) {
                         continue;
                     }
-                    $this->qualifications = array_merge($this->qualifications, $qualifierResult['payload']);
+                    $this->userQualifications = array_merge($this->userQualifications, $qualifierResult['payload']);
                 }
             }
         }
-        return ['authorized' => $authorized, 'redirect' => $redirect, 'qualifications' => $this->qualifications];
+        return ['authorized' => $authorized, 'redirect' => $redirect, 'qualifications' => $this->userQualifications];
     }
 
-    public function login (string $email, string $password) {
-        return $this->model->login($email, $password, $this->jwt['signature']);
+    public function login (string $email, string $password) : array {
+        return $this->model->login($email, $password);
     }
 
-    public function addUser (string $firstName, string $lastName, string $email, string $password) {
+    public function addUser (string $firstName, string $lastName, string $email, string $password) : int
+    {
         return $this->model->addUser($firstName, $lastName, $email, $password);
     }
 
-    public function setTokenSession ($tokenSession) {
+    public function setTokenSession (array $tokenSession)
+    {
         $this->tokenSession = $tokenSession;
     }
 
-    public function getTokenSession () {
+    public function getTokenSession () : array
+    {
         return $this->tokenSession;
     }
 
-    public function getQualifications () {
-        return $this->qualifications;
+    public function getQualifications () : array
+    {
+        return $this->userQualifications;
     }
 }

@@ -12,7 +12,7 @@ class Model {
         $this->db = $db;
     }
 
-    public function getRoles (integer $userId) : Array
+    public function getRoles () : Array
     {
         $result = $this->db->prepare('
             SELECT
@@ -20,14 +20,42 @@ class Model {
                 name
             FROM
                 authorization_roles
-            WHERE
-                user_id = :userId
+            ORDER BY
+                name
         ');
-        $result->execute(['userId' => $userId]);
+        $result->execute();
         return $result->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getUser (integer $userId)
+    public function getUserRoles (int $userId, $withId = false) : Array
+    {
+        $result = $this->db->prepare('
+            SELECT
+                R.id,
+                R.name
+            FROM
+                authorization_roles R,
+                authorization_user_roles U
+            WHERE
+                U.role_id = R.id AND
+                U.user_id = :userId
+        ');
+        $result->execute(['userId' => $userId]);
+        $records = $result->fetchAll(PDO::FETCH_ASSOC);
+        if (empty($records)) {
+            return [];
+        }
+        if ($withId) {
+            return $records;
+        }
+        $roleNames = [];
+        foreach ($records as $record) {
+            $roleNames[] = $record['name'];
+        }
+        return $roleNames;
+    }
+
+    public function getUser (int $userId)
     {
         $result = $this->db->prepare('
             SELECT
@@ -63,10 +91,10 @@ class Model {
         return false;
     }
 
-    public function addUser (string $firstName, string $lastName, string $email, string $password)
+    public function addUser (string $firstName, string $lastName, string $email, string $password) : int
     {
         if (!$this->checkUser($email)) {
-            return false;
+            return 0;
         };
         $email = trim(strtolower($email));
         $statement = $this->db->prepare('
@@ -133,28 +161,32 @@ class Model {
         return true;
     }
 
-    public function login (string $email, string $password) : bool
+    public function login (string $email, string $password) : array
     {
         $email = trim(strtolower($email));
-        $statement = $this->db->prepare('
+        $query = $this->db->prepare('
             SELECT
                 id,
+                first_name,
+                last_name,
+                email,
                 password
             FROM
                 users
             WHERE
                 email = :email
         ');
-        $result = $statement->execute([
+        $query->execute([
             'email' => $email
         ]);
-        $record = $result->fetch(PDO::FETCH_ASSOC);
+        $record = $query->fetch(PDO::FETCH_ASSOC);
         if (empty($record)) {
-            return false;
+            return [];
         }
         if (password_verify($password, $record['password'])) {
-            return true;
+            unset($record['password']);
+            return $record;
         }
-        return false;
+        return [];
     }
 }
