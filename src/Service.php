@@ -41,14 +41,13 @@ class Service {
         $token->getHeaders();
         $token->getClaims();
 
-        return [
-            'id'    => $token->getClaim('id'),
-            'email' => $token->getClaim('email'),
-            'roles' => $token->getClaim('roles')
-        ];
+        // convert to array
+        $session = json_decode(json_encode($token->getClaim('session')), true);
+
+        return $session;
     }
 
-    public function encodeJWT (int $id, string $email, array $roles) : string
+    public function encodeJWT (array $session) : string
     {
         $jwt = new Builder();
         $signer = new Sha256();
@@ -60,9 +59,7 @@ class Service {
             setIssuedAt(time())->
             setNotBefore(time())->
             setExpiration(time() + $this->jwt['expiresAt'])->
-            set('id', $id)->
-            set('email', $email)->
-            set('roles', $roles)->
+            set('session', $session)->
             sign($signer, $this->jwt['signature'])->
             getToken();
     }
@@ -101,7 +98,11 @@ class Service {
             return ['authorized' => false, 'redirect' => $redirect, 'cause' => 'unknown activity'];
         }
         $activityRoles = $this->activities['activities'][$activity];
-        $userRoles = $this->tokenSession['roles'];
+        if (is_object($this->tokenSession['roles'])) {
+            $userRoles = array_values(get_object_vars($this->tokenSession['roles']));
+        } else {
+            $userRoles = array_values($this->tokenSession['roles']);
+        }
 
         // always authorize super admin
         if (in_array('SUPER_ADMIN', $userRoles)) {

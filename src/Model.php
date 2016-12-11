@@ -27,7 +27,7 @@ class Model {
         return $result->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getUserRoles (int $userId, $withId = false) : Array
+    public function getUserRoles (int $userId) : Array
     {
         $result = $this->db->prepare('
             SELECT
@@ -45,14 +45,11 @@ class Model {
         if (empty($records)) {
             return [];
         }
-        if ($withId) {
-            return $records;
-        }
-        $roleNames = [];
+        $output = [];
         foreach ($records as $record) {
-            $roleNames[] = $record['name'];
+            $output[$record['id']] = $record['name'];
         }
-        return $roleNames;
+        return $output;
     }
 
     public function getUser (int $userId)
